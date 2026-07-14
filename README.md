@@ -6,6 +6,12 @@ The problem this solves: an LLM answer that just asserts things is a black box. 
 
 This makes Cited a natural fit for **researchers** and anyone working out of a **research vault** or **research repo** — literature notes, interview transcripts, primary sources, lab notebooks — where "where did this claim come from" isn't a nice-to-have, it's the whole point. Folder scoping (below) means a researcher can point a question at just one project's notes instead of an entire vault spanning several, and "Export to note" turns an answer straight into a real, footnoted research note with a sources section, ready to cite from.
 
+## Screenshots
+
+| Exported note (footnoted, with Sources) alongside the claim-grouped citations panel |
+| --- |
+| ![Exported note and citations panel](screenshots/citations-and-export.png) |
+
 ## Features
 
 - **Two panels, one workflow** — a chat panel (ask questions, see answers) and a sources panel (browse citations), stacked together in the right sidebar. Ask a question in one, see it broken down in the other.
