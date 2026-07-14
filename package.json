@@ -1,0 +1,22 @@
+{
+  "name": "cited",
+  "version": "1.0.0",
+  "description": "Ask a research question about your vault and get an answer with grounded, claim-grouped citations -- no external account, uses your local claude CLI.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
+  },
+  "keywords": ["research", "researcher", "citations", "obsidian", "claude"],
+  "author": "NoteNerd",
+  "license": "MIT",
+  "dependencies": {
+    "@types/node": "^22.10.0",
+    "obsidian": "latest"
+  },
+  "devDependencies": {
+    "esbuild": "^0.17.19",
+    "tslib": "2.4.0",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "id": "cited",
+  "name": "Cited",
+  "version": "1.0.0",
+  "minAppVersion": "1.7.2",
+  "description": "Ask a research question about your vault and get an answer with grounded, claim-grouped citations -- no external account, uses your local claude CLI.",
+  "author": "NoteNerd",
+  "authorUrl": "",
+  "fundingUrl": "",
+  "isDesktopOnly": true
+}
