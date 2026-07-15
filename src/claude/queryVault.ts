@@ -51,7 +51,12 @@ export interface QueryRunResult {
   resultErrorInfo: string | null;
 }
 
-const TIMEOUT_MS = 120_000;
+// Scales with maxTurns -- a larger vault needing more search turns also
+// needs proportionally more wall-clock time, especially over a slower
+// (e.g. corporate-proxied) network. 39s was observed for 9 turns in one
+// real max-turns case, so 300s gives real headroom up to the 30-turn
+// settings ceiling without being effectively unbounded.
+const TIMEOUT_MS = 300_000;
 
 interface PendingToolUse {
   toolUseId: string;

@@ -119,7 +119,7 @@ function isEnoent(err) {
 }
 
 // src/claude/queryVault.ts
-var TIMEOUT_MS = 12e4;
+var TIMEOUT_MS = 3e5;
 function toVaultRelative(vaultBasePath, cwd, absOrRel) {
   const abs = path2.isAbsolute(absOrRel) ? absOrRel : path2.join(cwd, absOrRel);
   return path2.relative(vaultBasePath, abs);
@@ -1285,7 +1285,7 @@ var ChatView = class extends import_obsidian6.ItemView {
 // src/settings.ts
 var import_obsidian7 = require("obsidian");
 var DEFAULT_SETTINGS = {
-  maxTurns: 15,
+  maxTurns: 20,
   citationsFolder: "Citations",
   openChatOnLaunch: true,
   openSourcesOnLaunch: true
