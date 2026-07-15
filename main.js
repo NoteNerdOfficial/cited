@@ -58,12 +58,12 @@ function resolveUserShell() {
   return typeof shell === "string" && shell ? shell : "/bin/zsh";
 }
 async function tryLoginShellWhich(bin) {
-  var _a;
   const loginShell = resolveUserShell();
   try {
     const { stdout } = await execFileAsync(loginShell, ["-lic", `which ${bin}`], { timeout: 5e3 });
-    const resolved = (_a = stdout.trim().split("\n").pop()) == null ? void 0 : _a.trim();
-    return resolved && (0, import_fs.existsSync)(resolved) ? resolved : null;
+    const lines = stdout.split("\n").map((line) => line.trim());
+    const resolved = lines.find((line) => line.endsWith(`/${bin}`) && (0, import_fs.existsSync)(line));
+    return resolved != null ? resolved : null;
   } catch (e) {
     return null;
   }
