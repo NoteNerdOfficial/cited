@@ -259,7 +259,11 @@ async function runVaultQuery(claudeBin, vaultBasePath, prompt, maxTurns, scopePa
     ];
     if (resumeSessionId)
       args.push("--resume", resumeSessionId);
-    const child = (0, import_child_process2.spawn)(claudeBin, args, { cwd: queryCwd, env: { ...process.env, ...loginShellEnv } });
+    const child = (0, import_child_process2.spawn)(claudeBin, args, {
+      cwd: queryCwd,
+      env: { ...process.env, ...loginShellEnv },
+      stdio: ["ignore", "pipe", "pipe"]
+    });
     const rawLines = [];
     let stderr = "";
     let settled = false;

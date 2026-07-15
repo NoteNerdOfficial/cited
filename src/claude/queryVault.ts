@@ -275,7 +275,15 @@ export async function runVaultQuery(
     // <id> correctly recalled something only mentioned in the first call).
     if (resumeSessionId) args.push("--resume", resumeSessionId);
 
-    const child = spawn(claudeBin, args, { cwd: queryCwd, env: { ...process.env, ...loginShellEnv } });
+    // stdin explicitly closed (matches `< /dev/null`): we never pipe
+    // anything in, but an open, unwritten stdin pipe (spawn()'s default)
+    // makes claude wait ~3s to see if piped input is coming, which has been
+    // observed to end in a non-zero exit rather than just a delay.
+    const child = spawn(claudeBin, args, {
+      cwd: queryCwd,
+      env: { ...process.env, ...loginShellEnv },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
 
     const rawLines: string[] = [];
     let stderr = "";
