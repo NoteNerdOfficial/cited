@@ -78,6 +78,31 @@ async function resolveClaudeBin() {
   }
   return "claude";
 }
+var cachedLoginShellEnv = null;
+async function resolveLoginShellEnv() {
+  if (cachedLoginShellEnv)
+    return cachedLoginShellEnv;
+  cachedLoginShellEnv = (async () => {
+    const loginShell = resolveUserShell();
+    try {
+      const { stdout } = await execFileAsync(loginShell, ["-lic", "env -0"], {
+        timeout: 5e3,
+        maxBuffer: 10 * 1024 * 1024
+      });
+      const env = {};
+      for (const entry of stdout.split("\0")) {
+        const idx = entry.indexOf("=");
+        if (idx <= 0)
+          continue;
+        env[entry.slice(0, idx)] = entry.slice(idx + 1);
+      }
+      return env;
+    } catch (e) {
+      return {};
+    }
+  })();
+  return cachedLoginShellEnv;
+}
 
 // src/claude/queryVault.ts
 var import_child_process2 = require("child_process");
@@ -211,6 +236,7 @@ async function runVaultQuery(claudeBin, vaultBasePath, prompt, maxTurns, scopePa
   if (scopePath && (!(0, import_fs2.existsSync)(queryCwd) || !(0, import_fs2.statSync)(queryCwd).isDirectory())) {
     throw new Error(`Cited: scope folder "${scopePath}" doesn't exist in this vault.`);
   }
+  const loginShellEnv = await resolveLoginShellEnv();
   return new Promise((resolve, reject) => {
     const args = [
       "-p",
@@ -233,7 +259,7 @@ async function runVaultQuery(claudeBin, vaultBasePath, prompt, maxTurns, scopePa
     ];
     if (resumeSessionId)
       args.push("--resume", resumeSessionId);
-    const child = (0, import_child_process2.spawn)(claudeBin, args, { cwd: queryCwd });
+    const child = (0, import_child_process2.spawn)(claudeBin, args, { cwd: queryCwd, env: { ...process.env, ...loginShellEnv } });
     const rawLines = [];
     let stderr = "";
     let settled = false;

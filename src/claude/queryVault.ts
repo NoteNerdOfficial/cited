@@ -3,6 +3,7 @@ import { existsSync, statSync } from "fs";
 import * as readline from "readline";
 import * as path from "path";
 import { isEnoent } from "../util/errors";
+import { resolveLoginShellEnv } from "./claudeBin";
 
 export interface ToolCallRecord {
   toolUseId: string;
@@ -243,6 +244,12 @@ export async function runVaultQuery(
     throw new Error(`Cited: scope folder "${scopePath}" doesn't exist in this vault.`);
   }
 
+  // Obsidian's Electron process doesn't inherit the login shell's env (proxy
+  // vars a corporate network may require, etc.) -- without this, `claude`
+  // can silently hang trying to reach the API directly instead of failing
+  // fast, which is indistinguishable from a slow query until the timeout.
+  const loginShellEnv = await resolveLoginShellEnv();
+
   return new Promise((resolve, reject) => {
     const args = [
       "-p",
@@ -268,7 +275,7 @@ export async function runVaultQuery(
     // <id> correctly recalled something only mentioned in the first call).
     if (resumeSessionId) args.push("--resume", resumeSessionId);
 
-    const child = spawn(claudeBin, args, { cwd: queryCwd });
+    const child = spawn(claudeBin, args, { cwd: queryCwd, env: { ...process.env, ...loginShellEnv } });
 
     const rawLines: string[] = [];
     let stderr = "";
