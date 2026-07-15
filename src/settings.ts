@@ -21,7 +21,7 @@ export interface CitedSettings {
 }
 
 export const DEFAULT_SETTINGS: CitedSettings = {
-  maxTurns: 8,
+  maxTurns: 15,
   citationsFolder: "Citations",
   openChatOnLaunch: true,
   openSourcesOnLaunch: true,

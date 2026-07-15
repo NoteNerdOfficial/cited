@@ -174,7 +174,7 @@ function describeAssistantEvent(event, turn, maxTurns) {
   const label = toolBlock ? describeToolUse(toolBlock) : "Reviewing what it's found\u2026";
   return { turn, maxTurns, label };
 }
-function parseTranscript(lines, vaultBasePath, cwd) {
+function parseTranscript(lines, vaultBasePath, cwd, maxTurns) {
   var _a;
   const pendingByToolUseId = /* @__PURE__ */ new Map();
   const toolCalls = [];
@@ -227,6 +227,8 @@ function parseTranscript(lines, vaultBasePath, cwd) {
     } else if (event.type === "result") {
       if (typeof event.result === "string" && !event.is_error) {
         rawAnswer = event.result;
+      } else if (event.subtype === "error_max_turns") {
+        resultErrorInfo = `Ran out of search turns before finding a complete answer (limit: ${maxTurns}). Try increasing "Max turns" in Cited's settings, or narrow your question or search scope.`;
       } else {
         resultErrorInfo = JSON.stringify(event).slice(0, 2e3);
       }
@@ -320,7 +322,7 @@ async function runVaultQuery(claudeBin, vaultBasePath, prompt, maxTurns, scopePa
         return;
       settled = true;
       clearTimeout(timer);
-      const result = parseTranscript(rawLines, vaultBasePath, queryCwd);
+      const result = parseTranscript(rawLines, vaultBasePath, queryCwd, maxTurns);
       if (code !== 0 && !result.rawAnswer) {
         const detail = (_a = result.resultErrorInfo) != null ? _a : stderr ? stderr.slice(0, 2e3) : null;
         reject(new Error(`Cited: claude exited with code ${code}${detail ? `: ${detail}` : ""}`));
@@ -1283,7 +1285,7 @@ var ChatView = class extends import_obsidian6.ItemView {
 // src/settings.ts
 var import_obsidian7 = require("obsidian");
 var DEFAULT_SETTINGS = {
-  maxTurns: 8,
+  maxTurns: 15,
   citationsFolder: "Citations",
   openChatOnLaunch: true,
   openSourcesOnLaunch: true

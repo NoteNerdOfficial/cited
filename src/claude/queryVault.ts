@@ -153,7 +153,7 @@ function describeAssistantEvent(event: Record<string, unknown>, turn: number, ma
  * it can be unit-tested directly against a captured stream-json log instead
  * of only ever being exercised end-to-end through a live `claude` process.
  */
-export function parseTranscript(lines: string[], vaultBasePath: string, cwd: string): QueryRunResult {
+export function parseTranscript(lines: string[], vaultBasePath: string, cwd: string, maxTurns: number): QueryRunResult {
   const pendingByToolUseId = new Map<string, PendingToolUse>();
   const toolCalls: ToolCallRecord[] = [];
   let rawAnswer = "";
@@ -214,11 +214,17 @@ export function parseTranscript(lines: string[], vaultBasePath: string, cwd: str
     } else if (event.type === "result") {
       if (typeof event.result === "string" && !event.is_error) {
         rawAnswer = event.result;
+      } else if (event.subtype === "error_max_turns") {
+        // claude doesn't auto-summarize what it found so far when it hits
+        // --max-turns -- it just errors out. A friendly, actionable message
+        // beats dumping the raw JSON event at the user.
+        resultErrorInfo = `Ran out of search turns before finding a complete answer (limit: ${maxTurns}). Try increasing "Max turns" in Cited's settings, or narrow your question or search scope.`;
       } else {
-        // A result event that isn't a clean success -- e.g. is_error: true,
-        // or a subtype like "error_max_turns"/"error_during_execution" with
-        // no "result" string at all. Keep the whole event (truncated) as
-        // the best available diagnostic rather than silently dropping it.
+        // Some other non-success result (is_error: true with a different
+        // subtype, etc.) -- keep the whole event (truncated) as the best
+        // available diagnostic rather than silently dropping it, since we
+        // haven't seen this shape before and don't yet know how to give it
+        // a friendlier message.
         resultErrorInfo = JSON.stringify(event).slice(0, 2000);
       }
     } else if (event.type === "system" && typeof event.session_id === "string") {
@@ -354,7 +360,7 @@ export async function runVaultQuery(
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      const result = parseTranscript(rawLines, vaultBasePath, queryCwd);
+      const result = parseTranscript(rawLines, vaultBasePath, queryCwd, maxTurns);
       if (code !== 0 && !result.rawAnswer) {
         // Prefer the JSON stream's own error info (claude often reports
         // failures there, not stderr) over stderr, over a bare exit code.
