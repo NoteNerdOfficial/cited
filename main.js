@@ -39,14 +39,20 @@ __export(main_exports, {
 });
 module.exports = __toCommonJS(main_exports);
 var import_obsidian8 = require("obsidian");
-var path4 = __toESM(require("path"));
+var path5 = __toESM(require("path"));
 
 // src/claude/claudeBin.ts
 var import_child_process = require("child_process");
 var import_fs = require("fs");
+var import_os = require("os");
 var import_util = require("util");
+var path = __toESM(require("path"));
 var execFileAsync = (0, import_util.promisify)(import_child_process.execFile);
-var CLAUDE_BIN_CANDIDATES = ["/usr/local/bin/claude", "/opt/homebrew/bin/claude"];
+var CLAUDE_BIN_CANDIDATES = [
+  "/usr/local/bin/claude",
+  "/opt/homebrew/bin/claude",
+  path.join((0, import_os.homedir)(), ".local/bin/claude")
+];
 function resolveUserShell() {
   const shell = process.env.SHELL;
   return typeof shell === "string" && shell ? shell : "/bin/zsh";
@@ -77,11 +83,21 @@ async function resolveClaudeBin() {
 var import_child_process2 = require("child_process");
 var import_fs2 = require("fs");
 var readline = __toESM(require("readline"));
-var path = __toESM(require("path"));
+var path2 = __toESM(require("path"));
+
+// src/util/errors.ts
+function errorMessage(err) {
+  return err instanceof Error ? err.message : String(err);
+}
+function isEnoent(err) {
+  return typeof err === "object" && err !== null && "code" in err && err.code === "ENOENT";
+}
+
+// src/claude/queryVault.ts
 var TIMEOUT_MS = 12e4;
 function toVaultRelative(vaultBasePath, cwd, absOrRel) {
-  const abs = path.isAbsolute(absOrRel) ? absOrRel : path.join(cwd, absOrRel);
-  return path.relative(vaultBasePath, abs);
+  const abs = path2.isAbsolute(absOrRel) ? absOrRel : path2.join(cwd, absOrRel);
+  return path2.relative(vaultBasePath, abs);
 }
 function extractText(content) {
   if (typeof content === "string")
@@ -119,7 +135,7 @@ function describeToolUse(block) {
   const name = typeof block.name === "string" ? block.name : "unknown";
   const input = (_a = block.input) != null ? _a : {};
   if (name === "Read" && typeof input.file_path === "string")
-    return `Reading ${path.basename(input.file_path)}`;
+    return `Reading ${path2.basename(input.file_path)}`;
   if (name === "Grep" && typeof input.pattern === "string")
     return `Searching for "${input.pattern}"`;
   if (name === "Glob" && typeof input.pattern === "string")
@@ -191,7 +207,7 @@ function parseTranscript(lines, vaultBasePath, cwd) {
   return { rawAnswer, toolCalls, sessionId };
 }
 async function runVaultQuery(claudeBin, vaultBasePath, prompt, maxTurns, scopePath, resumeSessionId, onProgress) {
-  const queryCwd = scopePath ? path.join(vaultBasePath, scopePath) : vaultBasePath;
+  const queryCwd = scopePath ? path2.join(vaultBasePath, scopePath) : vaultBasePath;
   if (scopePath && (!(0, import_fs2.existsSync)(queryCwd) || !(0, import_fs2.statSync)(queryCwd).isDirectory())) {
     throw new Error(`Cited: scope folder "${scopePath}" doesn't exist in this vault.`);
   }
@@ -253,6 +269,14 @@ async function runVaultQuery(claudeBin, vaultBasePath, prompt, maxTurns, scopePa
         return;
       settled = true;
       clearTimeout(timer);
+      if (isEnoent(err)) {
+        reject(
+          new Error(
+            `Cited couldn't find the claude CLI (looked for "${claudeBin}"). Make sure Claude Code is installed and that running "claude" works in a regular terminal, then restart Obsidian.`
+          )
+        );
+        return;
+      }
       reject(err);
     });
     child.on("close", (code) => {
@@ -398,7 +422,7 @@ ${call.resultText}` : call.resultText);
 
 // src/state/ConversationStore.ts
 var fs = __toESM(require("fs/promises"));
-var path2 = __toESM(require("path"));
+var path3 = __toESM(require("path"));
 
 // src/util/emitter.ts
 var TypedEmitter = class {
@@ -425,14 +449,6 @@ var TypedEmitter = class {
       listener(...args);
   }
 };
-
-// src/util/errors.ts
-function errorMessage(err) {
-  return err instanceof Error ? err.message : String(err);
-}
-function isEnoent(err) {
-  return typeof err === "object" && err !== null && "code" in err && err.code === "ENOENT";
-}
 
 // src/state/ConversationStore.ts
 var MAX_ARCHIVED_CONVERSATIONS = 50;
@@ -598,7 +614,7 @@ var ConversationStore = class extends TypedEmitter {
     return { id: `conv${Date.now()}`, sessionId: null, turns: [], createdAt: Date.now() };
   }
   async persist() {
-    await fs.mkdir(path2.dirname(this.logFilePath), { recursive: true });
+    await fs.mkdir(path3.dirname(this.logFilePath), { recursive: true });
     const payload = { current: this.current, archived: this.archived };
     await fs.writeFile(this.logFilePath, JSON.stringify(payload, null, 2), "utf8");
   }
@@ -606,7 +622,7 @@ var ConversationStore = class extends TypedEmitter {
 
 // src/views/CitedView.ts
 var import_obsidian = require("obsidian");
-var path3 = __toESM(require("path"));
+var path4 = __toESM(require("path"));
 
 // src/util/stripMarkdown.ts
 function stripMarkdown(text) {
@@ -744,7 +760,7 @@ var CitedView = class extends import_obsidian.ItemView {
     summary.toggleClass("is-expanded", expanded);
     const chevron = summary.createEl("span", { cls: "cited-chevron", text: expanded ? "\u25BE" : "\u25B8" });
     const info = summary.createDiv({ cls: "cited-citation-info" });
-    info.createEl("span", { cls: "cited-citation-file", text: path3.basename(citation.file) });
+    info.createEl("span", { cls: "cited-citation-file", text: path4.basename(citation.file) });
     info.createEl("span", {
       cls: `cited-badge cited-badge-${citation.type}`,
       text: citation.type === "quote" ? "quoted" : "inferred"
@@ -904,10 +920,10 @@ ${body}`;
   const basePath = folderPath && folderPath !== "." ? `${folderPath}/Cited - ${titleFragment} - ${date}` : `Cited - ${titleFragment} - ${date}`;
   let file;
   for (let suffix = 0; ; suffix++) {
-    const path5 = (0, import_obsidian2.normalizePath)(`${basePath}${suffix > 0 ? ` (${suffix})` : ""}.md`);
-    if (app.vault.getAbstractFileByPath(path5))
+    const path6 = (0, import_obsidian2.normalizePath)(`${basePath}${suffix > 0 ? ` (${suffix})` : ""}.md`);
+    if (app.vault.getAbstractFileByPath(path6))
       continue;
-    file = await app.vault.create(path5, content);
+    file = await app.vault.create(path6, content);
     break;
   }
   await app.workspace.getLeaf(true).openFile(file);
@@ -1303,7 +1319,7 @@ var CitedPlugin = class extends import_obsidian8.Plugin {
     await this.loadSettings();
     this.addSettingTab(new CitedSettingTab(this.app, this));
     this.conversationStore = new ConversationStore(
-      path4.join(this.getPluginDir(), "conversations.json"),
+      path5.join(this.getPluginDir(), "conversations.json"),
       (question, resumeSessionId, scopePath, onProgress) => this.runQuery(question, resumeSessionId, scopePath, onProgress),
       (vaultRelativePath) => this.statMtime(vaultRelativePath)
     );
@@ -1338,7 +1354,7 @@ var CitedPlugin = class extends import_obsidian8.Plugin {
     return adapter.getBasePath();
   }
   getPluginDir() {
-    return path4.join(this.getVaultBasePath(), this.app.vault.configDir, "plugins", this.manifest.id);
+    return path5.join(this.getVaultBasePath(), this.app.vault.configDir, "plugins", this.manifest.id);
   }
   async getClaudeBin() {
     if (!this.claudeBin)

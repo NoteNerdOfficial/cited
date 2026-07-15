@@ -2,6 +2,7 @@ import { spawn } from "child_process";
 import { existsSync, statSync } from "fs";
 import * as readline from "readline";
 import * as path from "path";
+import { isEnoent } from "../util/errors";
 
 export interface ToolCallRecord {
   toolUseId: string;
@@ -307,6 +308,14 @@ export async function runVaultQuery(
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      if (isEnoent(err)) {
+        reject(
+          new Error(
+            `Cited couldn't find the claude CLI (looked for "${claudeBin}"). Make sure Claude Code is installed and that running "claude" works in a regular terminal, then restart Obsidian.`
+          )
+        );
+        return;
+      }
       reject(err);
     });
 

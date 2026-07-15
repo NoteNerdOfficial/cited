@@ -1,10 +1,20 @@
 import { execFile } from "child_process";
 import { existsSync } from "fs";
+import { homedir } from "os";
 import { promisify } from "util";
+import * as path from "path";
 
 const execFileAsync = promisify(execFile);
 
-const CLAUDE_BIN_CANDIDATES = ["/usr/local/bin/claude", "/opt/homebrew/bin/claude"];
+// ~/.local/bin/claude is where Claude Code's own official standalone
+// installer (the curl | sh method) puts it for a user-level, non-sudo
+// install -- confirmed missing here by a real ENOENT report where `which
+// claude` in a real terminal resolved to exactly this path.
+const CLAUDE_BIN_CANDIDATES = [
+  "/usr/local/bin/claude",
+  "/opt/homebrew/bin/claude",
+  path.join(homedir(), ".local/bin/claude"),
+];
 
 function resolveUserShell(): string {
   const shell: unknown = process.env.SHELL;
