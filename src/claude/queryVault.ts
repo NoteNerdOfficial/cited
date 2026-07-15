@@ -42,6 +42,13 @@ export interface QueryRunResult {
    *  call in the same conversation to carry context forward. Null if no
    *  system event was seen (e.g. a malformed/empty transcript). */
   sessionId: string | null;
+  /** Set when a `result`-type event came back but wasn't a successful
+   *  string answer (e.g. `is_error: true`, or a subtype like
+   *  "error_max_turns") -- claude reports failures through this JSON
+   *  stream, not always stderr, so without this a real failure reason gets
+   *  silently dropped and surfaces to the user as a bare "exited with code
+   *  1" with nothing else to go on. */
+  resultErrorInfo: string | null;
 }
 
 const TIMEOUT_MS = 120_000;
@@ -151,6 +158,7 @@ export function parseTranscript(lines: string[], vaultBasePath: string, cwd: str
   const toolCalls: ToolCallRecord[] = [];
   let rawAnswer = "";
   let sessionId: string | null = null;
+  let resultErrorInfo: string | null = null;
 
   for (const line of lines) {
     if (!line.trim()) continue;
@@ -203,14 +211,22 @@ export function parseTranscript(lines: string[], vaultBasePath: string, cwd: str
           resultText: stripLineNumberPrefixes(text),
         });
       }
-    } else if (event.type === "result" && typeof event.result === "string") {
-      rawAnswer = event.result;
+    } else if (event.type === "result") {
+      if (typeof event.result === "string" && !event.is_error) {
+        rawAnswer = event.result;
+      } else {
+        // A result event that isn't a clean success -- e.g. is_error: true,
+        // or a subtype like "error_max_turns"/"error_during_execution" with
+        // no "result" string at all. Keep the whole event (truncated) as
+        // the best available diagnostic rather than silently dropping it.
+        resultErrorInfo = JSON.stringify(event).slice(0, 2000);
+      }
     } else if (event.type === "system" && typeof event.session_id === "string") {
       sessionId = event.session_id;
     }
   }
 
-  return { rawAnswer, toolCalls, sessionId };
+  return { rawAnswer, toolCalls, sessionId, resultErrorInfo };
 }
 
 /**
@@ -340,7 +356,10 @@ export async function runVaultQuery(
       clearTimeout(timer);
       const result = parseTranscript(rawLines, vaultBasePath, queryCwd);
       if (code !== 0 && !result.rawAnswer) {
-        reject(new Error(`Cited: claude exited with code ${code}${stderr ? `: ${stderr.slice(0, 2000)}` : ""}`));
+        // Prefer the JSON stream's own error info (claude often reports
+        // failures there, not stderr) over stderr, over a bare exit code.
+        const detail = result.resultErrorInfo ?? (stderr ? stderr.slice(0, 2000) : null);
+        reject(new Error(`Cited: claude exited with code ${code}${detail ? `: ${detail}` : ""}`));
         return;
       }
       resolve(result);

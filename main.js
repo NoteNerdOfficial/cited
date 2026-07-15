@@ -180,6 +180,7 @@ function parseTranscript(lines, vaultBasePath, cwd) {
   const toolCalls = [];
   let rawAnswer = "";
   let sessionId = null;
+  let resultErrorInfo = null;
   for (const line of lines) {
     if (!line.trim())
       continue;
@@ -223,13 +224,17 @@ function parseTranscript(lines, vaultBasePath, cwd) {
           resultText: stripLineNumberPrefixes(text)
         });
       }
-    } else if (event.type === "result" && typeof event.result === "string") {
-      rawAnswer = event.result;
+    } else if (event.type === "result") {
+      if (typeof event.result === "string" && !event.is_error) {
+        rawAnswer = event.result;
+      } else {
+        resultErrorInfo = JSON.stringify(event).slice(0, 2e3);
+      }
     } else if (event.type === "system" && typeof event.session_id === "string") {
       sessionId = event.session_id;
     }
   }
-  return { rawAnswer, toolCalls, sessionId };
+  return { rawAnswer, toolCalls, sessionId, resultErrorInfo };
 }
 async function runVaultQuery(claudeBin, vaultBasePath, prompt, maxTurns, scopePath, resumeSessionId, onProgress) {
   const queryCwd = scopePath ? path2.join(vaultBasePath, scopePath) : vaultBasePath;
@@ -310,13 +315,15 @@ async function runVaultQuery(claudeBin, vaultBasePath, prompt, maxTurns, scopePa
       reject(err);
     });
     child.on("close", (code) => {
+      var _a;
       if (settled)
         return;
       settled = true;
       clearTimeout(timer);
       const result = parseTranscript(rawLines, vaultBasePath, queryCwd);
       if (code !== 0 && !result.rawAnswer) {
-        reject(new Error(`Cited: claude exited with code ${code}${stderr ? `: ${stderr.slice(0, 2e3)}` : ""}`));
+        const detail = (_a = result.resultErrorInfo) != null ? _a : stderr ? stderr.slice(0, 2e3) : null;
+        reject(new Error(`Cited: claude exited with code ${code}${detail ? `: ${detail}` : ""}`));
         return;
       }
       resolve(result);
